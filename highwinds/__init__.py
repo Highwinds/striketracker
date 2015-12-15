@@ -91,10 +91,9 @@ def command(arguments=()):
         def wrapper(self, *args, **kwargs):
             # Apply arguments
             for arg in arguments:
-                if len(arg) > 2 and arg[2] == bool:
-                    self.parser.add_argument(arg[0], help=arg[1] if len(arg) > 1 else '', action='store_true')
-                else:
-                    self.parser.add_argument(arg[0], help=arg[1] if len(arg) > 1 else '')
+                name = arg['name']
+                del arg['name']
+                self.parser.add_argument(name, **arg)
             self.args = self.parser.parse_args()
 
             # Load token store
@@ -113,7 +112,7 @@ def command(arguments=()):
 class HighwindsCommand:
     def __init__(self):
         # Instantiate library
-        base_url = os.environ.get('HIGHWINDS_BASE_URL') or 'https://striketracker.highwinds.com'
+        base_url = os.environ.get('HIGHWINDS_BASE_URL', 'https://striketracker.highwinds.com')
         self.client = HighwindsClient(base_url)
 
         # Read in command line arguments
@@ -136,7 +135,7 @@ class HighwindsCommand:
         yaml.dump(obj, sys.stdout, Dumper=SafeDumper, default_flow_style=False)
 
     @command([
-        ['--application', 'Name of application with which to register this token']
+        {'name':'--application', 'help':'Name of application with which to register this token'}
     ])
     def init(self):
         print "Initializing configuration..."
@@ -161,11 +160,15 @@ class HighwindsCommand:
         self._print(user)
 
     @command([
-        ['account', 'Account from which to purge assets'],
-        ['--poll', 'Poll for purge status to be complete instead of returning id', bool],
-        ['--invalidate-only', 'Force revalidation on assets instead of removing them', bool],
-        ['--purge-all-dynamic', 'Purge all dynamic version of asset', bool],
-        ['--recursive', 'Purge all assets at this path recursively', bool],
+        {'name': 'account', 'help': 'Account from which to purge assets'},
+        {'name': '--poll', 'help': 'Poll for purge status to be complete instead of returning id',
+            'action': 'store_true'},
+        {'name': '--invalidate-only', 'help': 'Force revalidation on assets instead of removing them',
+            'action': 'store_true'},
+        {'name': '--purge-all-dynamic', 'help': 'Purge all dynamic version of asset',
+            'action': 'store_true'},
+        {'name': '--recursive', 'help': 'Purge all assets at this path recursively',
+            'action': 'store_true'},
         ])
     def purge(self):
         sys.stderr.write('Reading urls from stdin\n')
@@ -199,8 +202,8 @@ class HighwindsCommand:
             print job_id
 
     @command([
-        ['account', 'Account from which to purge assets'],
-        ['job_id', 'Job id for which to fetch status'],
-        ])
+        {'name': 'account', 'help': 'Account from which to purge assets'},
+        {'name': 'job_id', 'help': 'Job id for which to fetch status'},
+    ])
     def purge_status(self):
         print self.client.purge_status(self.args.account, self.args.job_id)
