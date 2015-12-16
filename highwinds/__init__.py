@@ -8,6 +8,7 @@ import sys
 import time
 import yaml
 from yaml import SafeDumper
+import logging
 
 
 class APIError(Exception):
@@ -96,6 +97,21 @@ def command(arguments=()):
                 self.parser.add_argument(name, **arg)
             self.args = self.parser.parse_args()
 
+            # Optionally turn on verbose logging
+            if self.args.verbose:
+                try:
+                    import http.client as http_client
+                except ImportError:
+                    import httplib as http_client
+                    http_client.HTTPConnection.debuglevel = 1
+
+                # You must initialize logging, otherwise you'll not see debug output.
+                logging.basicConfig()
+                logging.getLogger().setLevel(logging.DEBUG)
+                requests_log = logging.getLogger("requests.packages.urllib3")
+                requests_log.setLevel(logging.DEBUG)
+                requests_log.propagate = True
+
             # Load token store
             if not self.args.token:
                 self.cache = shelve.open(os.path.join(expanduser('~'), '.highwinds'))
@@ -121,6 +137,7 @@ class HighwindsCommand:
         methodList.sort()
         self.parser.add_argument('action', help=",".join(methodList))
         self.parser.add_argument('--token', help='Token to use for this action')
+        self.parser.add_argument('-v', '--verbose', help='Turn on verbose logging', action='store_true')
 
         # Call command
         command = sys.argv[1] if len(sys.argv) > 1 else None
