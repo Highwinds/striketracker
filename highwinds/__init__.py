@@ -2,13 +2,39 @@ import argparse
 from getpass import getpass
 import os
 from os.path import expanduser
-import shelve
 import requests
 import sys
 import time
 import yaml
 from yaml import SafeDumper
 import logging
+
+CACHE_FILENAME = os.path.join(expanduser('~'), '.highwinds')
+
+
+class ConfigurationCache():
+    def __init__(self):
+        self.cache = None
+
+    def read(self):
+        with os.fdopen(os.open(CACHE_FILENAME, os.O_RDONLY | os.O_CREAT, 0600), 'r') as f:
+            self.cache = yaml.load(f)
+            if self.cache is None:
+                self.cache = {}
+        return self.cache
+
+    def set(self, key, value):
+        if self.cache is None:
+            self.cache = {}
+        self.cache[key] = value
+        with os.fdopen(os.open(CACHE_FILENAME, os.O_WRONLY | os.O_CREAT, 0600), 'w') as f:
+            return yaml.dump(self.cache, f, Dumper=SafeDumper, default_flow_style=False)
+
+    def get(self, key, default=None):
+        if self.cache is None:
+            self.read()
+        return self.cache.get(key, default)
+
 
 
 class APIError(Exception):
@@ -114,7 +140,6 @@ def command(arguments=()):
 
             # Load token store
             if not self.args.token:
-                self.cache = shelve.open(os.path.join(expanduser('~'), '.highwinds'))
                 self.client.token = self.cache.get('token')
             else:
                 self.client.token = self.args.token
@@ -125,11 +150,22 @@ def command(arguments=()):
     return apply_args
 
 
+def authenticated(fn):
+    def wrapper(self, *args, **kwargs):
+        if self.client.token is None:
+            print "This command requires authentication. Either run `highwinds init` to cache credentials locally, or " \
+                  "supply the --token parameter on the command line."
+            exit(1)
+        fn(self, *args, **kwargs)
+    return wrapper
+
+
 class HighwindsCommand:
     def __init__(self):
         # Instantiate library
         base_url = os.environ.get('HIGHWINDS_BASE_URL', 'https://striketracker.highwinds.com')
         self.client = HighwindsClient(base_url)
+        self.cache = ConfigurationCache()
 
         # Read in command line arguments
         self.parser = argparse.ArgumentParser(description='Interface to the Highwinds CDN Web Services')
@@ -164,7 +200,7 @@ class HighwindsCommand:
                 password=getpass(),
                 application=self.args.application if hasattr(self.args, 'application') else None
             )
-        self.cache['token'] = token
+        self.cache.set('token', token)
         print 'Successfully saved token'
 
     @command()
@@ -172,6 +208,7 @@ class HighwindsCommand:
         print self.client.version()
 
     @command()
+    @authenticated
     def me(self):
         user = self.client.me()
         self._print(user)
@@ -187,6 +224,7 @@ class HighwindsCommand:
         {'name': '--recursive', 'help': 'Purge all assets at this path recursively',
             'action': 'store_true'},
         ])
+    @authenticated
     def purge(self):
         sys.stderr.write('Reading urls from stdin\n')
         urls = []
@@ -222,5 +260,6 @@ class HighwindsCommand:
         {'name': 'account', 'help': 'Account from which to purge assets'},
         {'name': 'job_id', 'help': 'Job id for which to fetch status'},
     ])
+    @authenticated
     def purge_status(self):
         print self.client.purge_status(self.args.account, self.args.job_id)
