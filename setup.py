@@ -1,9 +1,9 @@
 from setuptools import setup
 
-setup(name='highwinds',
+setup(name='striketracker',
       version='0.1',
-      description='Command line interface to the Highwinds CDN web services',
-      url='https://github.com/Highwinds/highwinds',
+      description='Command line interface to the Highwinds CDN',
+      url='https://github.com/Highwinds/striketracker',
       author='Mark Cahill',
       author_email='support@highwinds.com',
       license='MIT',
