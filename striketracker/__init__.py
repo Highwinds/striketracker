@@ -43,7 +43,7 @@ class APIError(Exception):
         self.context = context
 
 
-class HighwindsClient:
+class APIClient:
     def __init__(self, base_url, token=None):
         self.base_url = base_url
         self.token = token
@@ -160,11 +160,11 @@ def authenticated(fn):
     return wrapper
 
 
-class HighwindsCommand:
+class Command:
     def __init__(self):
         # Instantiate library
         base_url = os.environ.get('HIGHWINDS_BASE_URL', 'https://striketracker.highwinds.com')
-        self.client = HighwindsClient(base_url)
+        self.client = APIClient(base_url)
         self.cache = ConfigurationCache()
 
         # Read in command line arguments

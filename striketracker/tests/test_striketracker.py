@@ -1,13 +1,13 @@
 import json
 import unittest
 import responses
-from highwinds import HighwindsClient, APIError
+from striketracker import APIClient, APIError
 
 
-class TestHighwindsClient(unittest.TestCase):
+class TestStrikeTrackerAPIClient(unittest.TestCase):
 
     def setUp(self):
-        self.client = HighwindsClient('http://127.0.0.1', 'testtoken')
+        self.client = APIClient('http://127.0.0.1', 'testtoken')
 
     @responses.activate
     def test_version(self):
