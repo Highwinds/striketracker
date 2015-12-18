@@ -1,7 +1,7 @@
-highwinds
-=========
+striketracker
+=============
 
-Command line interface to the Highwinds CDN Web Services
+Command line interface to the Highwinds CDN
 
 ## Installation instructions
 
