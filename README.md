@@ -7,10 +7,10 @@ Command line interface to the Highwinds CDN
 
 highwinds is available via PyPI. To install, run
 
-    pip install highwinds
+    pip install striketracker
 
 ## Usage
 
-    highwinds [command] [options]
+    striketracker [command] [options]
 
-Run `highwinds --help` to get a list of current commands.
+Run `striketracker --help` to get a list of current commands.

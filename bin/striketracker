@@ -1,0 +1,6 @@
+#!/usr/bin/python
+
+from striketracker import Command
+
+# Hook into command
+command = Command()

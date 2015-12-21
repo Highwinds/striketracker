@@ -1,6 +1,0 @@
-#!/usr/bin/python
-
-from highwinds import HighwindsCommand
-
-# Hook into command
-command = HighwindsCommand()
