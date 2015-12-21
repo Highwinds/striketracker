@@ -1,8 +1,7 @@
 language: python
 python:
   - "2.7"
-install:
-  - python setup.py develop
-  - python setup.py test
-  - pip install pytest-cov
-script: "py.test --cov=striketracker --cov-report term-missing"
+install: "python setup.py develop"
+script:
+  - coverage run setup.py test
+  - coverage report -m striketracker/**/*.py
