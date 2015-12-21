@@ -13,5 +13,5 @@ setup(name='striketracker',
           'PyYAML>=3.10'
       ],
       test_suite='nose.collector',
-      tests_require=['nose', 'responses'],
+      tests_require=['nose', 'responses', 'pytest-cov'],
       zip_safe=False)
