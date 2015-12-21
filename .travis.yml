@@ -6,4 +6,4 @@ install:
   - pip install coverage
 script:
   - coverage run setup.py test
-  - coverage report -m striketracker/**/*.py
+  - coverage report -m striketracker/*.py striketracker/tests/*.py
