@@ -1,5 +1,5 @@
 import argparse
-from getpass import getpass
+import getpass
 import os
 from os.path import expanduser
 import requests
@@ -9,15 +9,15 @@ import yaml
 from yaml import SafeDumper
 import logging
 
-CACHE_FILENAME = os.path.join(expanduser('~'), '.highwinds')
 
 
 class ConfigurationCache():
-    def __init__(self):
+    def __init__(self, filename=None):
         self.cache = None
+        self.filename = filename if filename is not None else os.path.join(expanduser('~'), '.highwinds')
 
     def read(self):
-        with os.fdopen(os.open(CACHE_FILENAME, os.O_RDONLY | os.O_CREAT, 0600), 'r') as f:
+        with os.fdopen(os.open(self.filename, os.O_RDONLY | os.O_CREAT, 0600), 'r') as f:
             self.cache = yaml.load(f)
             if self.cache is None:
                 self.cache = {}
@@ -25,9 +25,9 @@ class ConfigurationCache():
 
     def set(self, key, value):
         if self.cache is None:
-            self.cache = {}
+            self.read()
         self.cache[key] = value
-        with os.fdopen(os.open(CACHE_FILENAME, os.O_WRONLY | os.O_CREAT, 0600), 'w') as f:
+        with os.fdopen(os.open(self.filename, os.O_WRONLY | os.O_CREAT, 0600), 'w') as f:
             return yaml.dump(self.cache, f, Dumper=SafeDumper, default_flow_style=False)
 
     def get(self, key, default=None):
@@ -71,12 +71,17 @@ class APIClient:
             'User-Agent': application
         })
         auth = response.json()
+        if 'access_token' not in auth:
+            raise APIError('Could not fetch access token', response)
         access_token = auth['access_token']
 
         # Grab user's id and root account hash
         user_response = requests.get(self.base_url + '/api/v1/users/me', headers={'Authorization': 'Bearer %s' % access_token})
-        account_hash = user_response.json()['accountHash']
-        user_id = user_response.json()['id']
+        user = user_response.json()
+        if 'accountHash' not in user or 'id' not in user:
+            raise APIError('Could not fetch user\'s root account hash', user_response)
+        account_hash = user['accountHash']
+        user_id = user['id']
 
         # Generate a new API token
         token_response = requests.post(self.base_url + ('/api/v1/accounts/{account_hash}/users/{user_id}/tokens'.format(
@@ -119,8 +124,9 @@ def command(arguments=()):
             # Apply arguments
             for arg in arguments:
                 name = arg['name']
-                del arg['name']
-                self.parser.add_argument(name, **arg)
+                arg_copy = arg.copy()
+                del arg_copy['name']
+                self.parser.add_argument(name, **arg_copy)
             self.args = self.parser.parse_args()
 
             # Optionally turn on verbose logging
@@ -161,13 +167,14 @@ def authenticated(fn):
 
 
 class Command:
-    def __init__(self):
+    def __init__(self, stdout=sys.stdout, stderr=sys.stderr, cache=None):
         # Instantiate library
         base_url = os.environ.get('HIGHWINDS_BASE_URL', 'https://striketracker.highwinds.com')
         self.client = APIClient(base_url)
-        self.cache = ConfigurationCache()
+        self.cache = ConfigurationCache(cache)
 
         # Read in command line arguments
+        self.stdout = stdout
         self.parser = argparse.ArgumentParser(description='Interface to the Highwinds CDN Web Services')
         methodList = [method for method in dir(self) if callable(getattr(self, method)) and '_' not in method]
         methodList.sort()
@@ -178,34 +185,35 @@ class Command:
         # Call command
         command = sys.argv[1] if len(sys.argv) > 1 else None
         if len(sys.argv) == 1:
-            self.parser.print_help()
+            self.parser.print_help(file=self.stdout)
         elif hasattr(self, sys.argv[1]):
             getattr(self, sys.argv[1])()
         else:
-            sys.stderr.write("Unknown command: %s\n" % command)
+            self.stderr.write("Unknown command: %s\n" % command)
 
     def _print(self, obj):
-        yaml.dump(obj, sys.stdout, Dumper=SafeDumper, default_flow_style=False)
+        yaml.dump(obj, self.stdout, Dumper=SafeDumper, default_flow_style=False)
 
     @command([
-        {'name':'--application', 'help':'Name of application with which to register this token'}
+        {'name': '--application', 'help': 'Name of application with which to register this token'}
     ])
     def init(self):
-        print "Initializing configuration..."
+        self.stdout.write("Initializing configuration...\n")
         if self.args.token:
             token = self.args.token
         else:
             token = self.client.create_token(
                 username=raw_input('Username: '),
-                password=getpass(),
+                password=getpass.getpass(),
                 application=self.args.application if hasattr(self.args, 'application') else None
             )
         self.cache.set('token', token)
-        print 'Successfully saved token'
+        self.stdout.write('Successfully saved token\n')
 
     @command()
     def version(self):
-        print self.client.version()
+        self.stdout.write(self.client.version())
+        self.stdout.write("\n")
 
     @command()
     @authenticated
@@ -226,7 +234,7 @@ class Command:
         ])
     @authenticated
     def purge(self):
-        sys.stderr.write('Reading urls from stdin\n')
+        self.stderr.write('Reading urls from stdin\n')
         urls = []
         for url in sys.stdin:
             urls.append({
@@ -240,21 +248,20 @@ class Command:
         try:
             job_id = self.client.purge(self.args.account, urls)
         except APIError as e:
-            print e.message
-            print e.context.text
             exit(1)
 
         # Optionally poll for progress
         if self.args.poll:
             progress = 0.0
-            sys.stderr.write('Sending purge...')
+            self.stderr.write('Sending purge...')
             while progress < 1.0:
                 progress = self.client.purge_status(self.args.account, job_id)
-                sys.stderr.write('.')
+                self.stderr.write('.')
                 time.sleep(0.1)
-            sys.stderr.write('Done!\n')
+            self.stderr.write('Done!\n')
         else:
-            print job_id
+            self.stdout.write(job_id)
+            self.stdout.write("\n")
 
     @command([
         {'name': 'account', 'help': 'Account from which to purge assets'},
@@ -262,4 +269,5 @@ class Command:
     ])
     @authenticated
     def purge_status(self):
-        print self.client.purge_status(self.args.account, self.args.job_id)
+        self.stdout.write(self.client.purge_status(self.args.account, self.args.job_id))
+        self.stdout.write("\n")
