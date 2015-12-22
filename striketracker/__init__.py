@@ -159,22 +159,22 @@ def command(arguments=()):
 def authenticated(fn):
     def wrapper(self, *args, **kwargs):
         if self.client.token is None:
-            print "This command requires authentication. Either run `highwinds init` to cache credentials locally, or " \
-                  "supply the --token parameter on the command line."
+            sys.stderr.write(
+                "This command requires authentication. Either run `highwinds init` to cache credentials locally, or "
+                "supply the --token parameter on the command line.\n")
             exit(1)
         fn(self, *args, **kwargs)
     return wrapper
 
 
 class Command:
-    def __init__(self, stdout=sys.stdout, stderr=sys.stderr, cache=None):
+    def __init__(self, cache=None):
         # Instantiate library
         base_url = os.environ.get('HIGHWINDS_BASE_URL', 'https://striketracker.highwinds.com')
         self.client = APIClient(base_url)
         self.cache = ConfigurationCache(cache)
 
         # Read in command line arguments
-        self.stdout = stdout
         self.parser = argparse.ArgumentParser(description='Interface to the Highwinds CDN Web Services')
         methodList = [method for method in dir(self) if callable(getattr(self, method)) and '_' not in method]
         methodList.sort()
@@ -185,20 +185,20 @@ class Command:
         # Call command
         command = sys.argv[1] if len(sys.argv) > 1 else None
         if len(sys.argv) == 1:
-            self.parser.print_help(file=self.stdout)
+            self.parser.print_help(file=sys.stdout)
         elif hasattr(self, sys.argv[1]):
             getattr(self, sys.argv[1])()
         else:
-            self.stderr.write("Unknown command: %s\n" % command)
+            sys.stderr.write("Unknown command: %s\n" % command)
 
     def _print(self, obj):
-        yaml.dump(obj, self.stdout, Dumper=SafeDumper, default_flow_style=False)
+        yaml.dump(obj, sys.stdout, Dumper=SafeDumper, default_flow_style=False)
 
     @command([
         {'name': '--application', 'help': 'Name of application with which to register this token'}
     ])
     def init(self):
-        self.stdout.write("Initializing configuration...\n")
+        sys.stdout.write("Initializing configuration...\n")
         if self.args.token:
             token = self.args.token
         else:
@@ -208,12 +208,12 @@ class Command:
                 application=self.args.application if hasattr(self.args, 'application') else None
             )
         self.cache.set('token', token)
-        self.stdout.write('Successfully saved token\n')
+        sys.stdout.write('Successfully saved token\n')
 
     @command()
     def version(self):
-        self.stdout.write(self.client.version())
-        self.stdout.write("\n")
+        sys.stdout.write(self.client.version())
+        sys.stdout.write("\n")
 
     @command()
     @authenticated
@@ -234,7 +234,7 @@ class Command:
         ])
     @authenticated
     def purge(self):
-        self.stderr.write('Reading urls from stdin\n')
+        sys.stderr.write('Reading urls from stdin\n')
         urls = []
         for url in sys.stdin:
             urls.append({
@@ -253,15 +253,15 @@ class Command:
         # Optionally poll for progress
         if self.args.poll:
             progress = 0.0
-            self.stderr.write('Sending purge...')
+            sys.stderr.write('Sending purge...')
             while progress < 1.0:
                 progress = self.client.purge_status(self.args.account, job_id)
-                self.stderr.write('.')
+                sys.stderr.write('.')
                 time.sleep(0.1)
-            self.stderr.write('Done!\n')
+            sys.stderr.write('Done!\n')
         else:
-            self.stdout.write(job_id)
-            self.stdout.write("\n")
+            sys.stdout.write(job_id)
+            sys.stdout.write("\n")
 
     @command([
         {'name': 'account', 'help': 'Account from which to purge assets'},
@@ -269,5 +269,5 @@ class Command:
     ])
     @authenticated
     def purge_status(self):
-        self.stdout.write(self.client.purge_status(self.args.account, self.args.job_id))
-        self.stdout.write("\n")
+        sys.stdout.write(self.client.purge_status(self.args.account, self.args.job_id))
+        sys.stdout.write("\n")
