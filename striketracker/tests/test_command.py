@@ -193,7 +193,8 @@ lastName: Saget
     @patch('striketracker.APIClient.purge_status')
     def test_purge_status(self, purge_status):
         sys.argv = ['striketracker', 'purge_status', 'x1x2x3x4', 'cmu34ctmy3408xmy']
+        os.write(self.fd, 'token: foobar')
         purge_status.return_value = 0.75
-        command = Command()
+        command = Command(cache=self.cache)
         purge_status.assert_called_with('x1x2x3x4', 'cmu34ctmy3408xmy')
         self.assertEqual('0.75\n', sys.stdout.getvalue())
