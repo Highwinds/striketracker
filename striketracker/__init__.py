@@ -44,7 +44,7 @@ class APIError(Exception):
 
 
 class APIClient:
-    def __init__(self, base_url, token=None):
+    def __init__(self, base_url='https://striketracker.highwinds.com', token=None):
         self.base_url = base_url
         self.token = token
 
