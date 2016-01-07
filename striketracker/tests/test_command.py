@@ -29,7 +29,7 @@ class TestStrikeTrackerCommand(unittest.TestCase):
         sys.argv = ['striketracker']
         command = Command()
         self.assertIn(
-            'usage: striketracker [-h] [--token TOKEN] [-v] action\n\nInterface to the Highwinds CDN Web Services',
+            'usage: striketracker [-h] [--token TOKEN] [-v] action\n\nCommand line interface to the Highwinds CDN',
             sys.stdout.getvalue())
 
     def test_print_unknown_command(self):
