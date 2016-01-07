@@ -49,3 +49,7 @@ The same is also possible via the Python library bundled with the application:
         time.sleep(0.5)
     sys.stdout.write('Done!\n')
 
+### Integrating with alternative environments
+
+In order to integrate against alternative environments, simply populate the STRIKETRACKER_BASE_URL environment
+variable without a trailing slash.

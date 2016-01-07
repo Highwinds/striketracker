@@ -62,7 +62,7 @@ class APIClient:
 
     def create_token(self, username, password, application=None):
         if application is None:
-            application = 'Highwinds Python client'
+            application = 'StrikeTracker Python client'
 
         # Grab an access token to use to fetch user
         response = requests.post(self.base_url + '/auth/token', data={
@@ -160,7 +160,7 @@ def authenticated(fn):
     def wrapper(self, *args, **kwargs):
         if self.client.token is None:
             sys.stderr.write(
-                "This command requires authentication. Either run `highwinds init` to cache credentials locally, or "
+                "This command requires authentication. Either run `striketracker init` to cache credentials locally, or "
                 "supply the --token parameter on the command line.\n")
             exit(1)
         fn(self, *args, **kwargs)
@@ -170,12 +170,12 @@ def authenticated(fn):
 class Command:
     def __init__(self, cache=None):
         # Instantiate library
-        base_url = os.environ.get('HIGHWINDS_BASE_URL', 'https://striketracker.highwinds.com')
+        base_url = os.environ.get('STRIKETRACKER_BASE_URL', 'https://striketracker.highwinds.com')
         self.client = APIClient(base_url)
         self.cache = ConfigurationCache(cache)
 
         # Read in command line arguments
-        self.parser = argparse.ArgumentParser(description='Interface to the Highwinds CDN Web Services')
+        self.parser = argparse.ArgumentParser(description='Command line interface to the Highwinds CDN')
         methodList = [method for method in dir(self) if callable(getattr(self, method)) and '_' not in method]
         methodList.sort()
         self.parser.add_argument('action', help=",".join(methodList))
@@ -184,7 +184,7 @@ class Command:
 
         # Call command
         command = sys.argv[1] if len(sys.argv) > 1 else None
-        if len(sys.argv) == 1:
+        if len(sys.argv) == 1 or "-" in sys.argv[1]:
             self.parser.print_help(file=sys.stdout)
         elif hasattr(self, sys.argv[1]):
             getattr(self, sys.argv[1])()
