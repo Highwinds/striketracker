@@ -7,7 +7,7 @@ Python client and command line interface to the Highwinds CDN
 
 ## Installation instructions
 
-highwinds is available via PyPI. To install, run
+striketracker is available via PyPI. To install, run
 
     pip install striketracker
 
