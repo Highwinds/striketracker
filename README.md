@@ -7,7 +7,7 @@ Python client and command line interface to the Highwinds CDN
 
 ## Installation instructions
 
-striketracker is available via PyPI. To install, run
+striketracker is available via [pip](https://pip.pypa.io/en/stable/installing/). To install, run
 
     pip install striketracker
 
@@ -17,10 +17,21 @@ striketracker is available via PyPI. To install, run
 
 Run `striketracker --help` to get a list of current commands.
 
+## Authenticating
+
+There are two ways to authenticate calls to the API from the command line client. If you wish
+to securely store your token locally so you don't have to enter it each time,
+you can simply run `striketracker init` and enter your username and password.
+
+If you wish to enter your token when issuing a command, simply use the `--token` parameter to
+specify the token you wish to use to perform the operation, for example:
+
+    striketracker me --token 3mux90t8mu4890t39xtw93mytmw3yc0t93u90rxxt33ijk
+
 ## Example
 
-To purge from the command line, simply run the purge command with your account hash and provide urls newline-delimited
-on stdin:
+To purge from the command line, simply run the purge command with your account hash and provide newline-delimited URLs
+on stdin. You can use the `--poll` parameter in order to wait for the purge to complete before exiting. For example:
 
     $ echo //www.example.com/style.css | striketracker purge x1x2x3x4 --poll
     Reading urls from stdin
@@ -49,7 +60,9 @@ The same is also possible via the Python library bundled with the application:
         time.sleep(0.5)
     sys.stdout.write('Done!\n')
 
-### Integrating with alternative environments
+### Integrating with testing environments
 
-In order to integrate against alternative environments, simply populate the STRIKETRACKER_BASE_URL environment
+In order to integrate against testing environments, simply populate the STRIKETRACKER_BASE_URL environment
 variable without a trailing slash.
+
+    export STRIKETRACKER_BASE_URL=https://striketracker.highwinds.com
