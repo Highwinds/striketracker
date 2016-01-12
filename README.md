@@ -28,6 +28,11 @@ specify the token you wish to use to perform the operation, for example:
 
     striketracker me --token 3mux90t8mu4890t39xtw93mytmw3yc0t93u90rxxt33ijk
 
+To authenticate from the Python library, log into StrikeTracker and obtain an API token from the Edit Profile link
+under the user menu on the top right of the application. This is a revocable API token that you can use to integrate
+applications with the StrikeTracker API. Store this token in a secure place, generally an environment variable on the
+production server that will be running your application. Then pass this as the token parameter to the APIClient.
+
 ## Example
 
 To purge from the command line, simply run the purge command with your account hash and provide newline-delimited URLs
@@ -37,7 +42,7 @@ on stdin. You can use the `--poll` parameter in order to wait for the purge to c
     Reading urls from stdin
     Sending purge.................Done!
 
-The same is also possible via the Python library bundled with the application:
+Here is an example of the same purge issued via the Python library bundled with the application:
 
     from striketracker import APIClient
     import sys
