@@ -60,6 +60,69 @@ class APIClient:
         else:
             raise APIError('Could not fetch user details', user_response)
 
+    def get_host(self, account, host):
+        response = requests.get(
+            self.base_url + '/api/v1/accounts/{account}/hosts/{host}'.format(account=account, host=host),
+            headers={'Authorization': 'Bearer %s' % self.token})
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise APIError('Could not fetch host', response)
+
+    def create_host(self, account, host):
+        response = requests.post(
+            self.base_url + '/api/v1/accounts/{account}/hosts'.format(account=account, host=host),
+            headers={
+                'Authorization': 'Bearer %s' % self.token,
+                'Content-Type': 'application/json'
+            },
+            json=host)
+        if response.status_code == 201:
+            return response.json()
+        else:
+            raise APIError('Could not create host', response)
+
+    def create_scope(self, account, host, scope):
+        response = requests.post(
+            self.base_url + '/api/v1/accounts/{account}/hosts/{host}/configuration/scopes'
+                .format(account=account, host=host),
+            headers={
+                'Authorization': 'Bearer %s' % self.token,
+                'Content-Type': 'application/json'
+            },
+            json=scope)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise APIError('Could not create scope', response)
+
+    def update_configuration(self, account, host, scope, configuration):
+        response = requests.put(
+            self.base_url + '/api/v1/accounts/{account}/hosts/{host}/configuration/{scope}'
+                .format(account=account, host=host, scope=scope),
+            headers={
+                'Authorization': 'Bearer %s' % self.token,
+                'Content-Type': 'application/json'
+            },
+            json=configuration)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise APIError('Could not update configuration', response)
+
+    def get_configuration(self, account, host, scope):
+        response = requests.get(
+            self.base_url + '/api/v1/accounts/{account}/hosts/{host}/configuration/{scope}'
+                .format(account=account, host=host, scope=scope),
+            headers={
+                'Authorization': 'Bearer %s' % self.token,
+                'Content-Type': 'application/json'
+            })
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise APIError('Could not fetch configuration', response)
+
     def create_token(self, username, password, application=None):
         if application is None:
             application = 'StrikeTracker Python client'
@@ -194,6 +257,14 @@ class Command:
     def _print(self, obj):
         yaml.dump(obj, sys.stdout, Dumper=SafeDumper, default_flow_style=False)
 
+    def _error(self, e):
+        sys.stderr.write(e.message + "\n")
+        try:
+            sys.stderr.write(e.context.json()['error'] + "\n")
+        except:
+            pass
+        exit(1)
+
     @command([
         {'name': '--application', 'help': 'Name of application with which to register this token'}
     ])
@@ -248,7 +319,7 @@ class Command:
         try:
             job_id = self.client.purge(self.args.account, urls)
         except APIError as e:
-            exit(1)
+            self._error(e)
 
         # Optionally poll for progress
         if self.args.poll:
@@ -271,3 +342,72 @@ class Command:
     def purge_status(self):
         sys.stdout.write(self.client.purge_status(self.args.account, self.args.job_id))
         sys.stdout.write("\n")
+
+    @command([
+        {'name': 'account', 'help': 'Account from which to purge assets'},
+        {'name': 'host', 'help': 'Hash of host to clone'},
+        ])
+    @authenticated
+    def get_host(self):
+        try:
+            host = self.client.get_host(self.args.account, self.args.host)
+        except APIError as e:
+            self._error(e)
+        self._print(host)
+
+    @command([
+        {'name': 'account', 'help': 'Account from which to purge assets'},
+        {'name': 'host', 'help': 'Hash of host to clone'},
+    ])
+    @authenticated
+    def clone_host(self):
+        try:
+            # Grab host to clone
+            host = self.client.get_host(self.args.account, self.args.host)
+
+            # Create new host
+            new_host = self.client.create_host(self.args.account, {
+                "name": "%s (copy)" % host['name']
+            })
+        except APIError as e:
+            self._error(e)
+        sys.stdout.write("\nHost:\n")
+        yaml.dump(new_host, sys.stdout, Dumper=SafeDumper, default_flow_style=False)
+
+        # Iterate over the source's scopes
+        sys.stdout.write("\nConfiguration:")
+        for scope in host['scopes']:
+            # Create each required scope
+            try:
+                new_scope = self.client.create_scope(self.args.account, new_host['hashCode'], {
+                    "platform": scope['platform'],
+                    "path": scope['path']
+                })
+
+                # Get configuration from source
+                old_configuration = self.client.get_configuration(
+                    self.args.account, self.args.host, scope['id'])
+
+                # Delete scope and hostnames
+                del old_configuration['scope']
+                if 'hostname' in old_configuration.keys():
+                    del old_configuration['hostname']
+
+                # Delete IDs
+                def strip_ids(typeInstance):
+                    if 'id' in typeInstance:
+                        del typeInstance['id']
+                for typeName, confType in old_configuration.iteritems():
+                    if type(confType) is list:
+                        for index in range(len(confType)):
+                            strip_ids(confType[index])
+                    else:
+                        strip_ids(confType)
+
+                # Post configuration to target
+                new_configuration = self.client.update_configuration(
+                    self.args.account, new_host['hashCode'], new_scope['id'], old_configuration)
+                sys.stdout.write("\n{platform}\t{path}\n".format(**new_scope))
+                yaml.dump(new_configuration, sys.stdout, Dumper=SafeDumper, default_flow_style=False)
+            except APIError as e:
+                self._error(e)
