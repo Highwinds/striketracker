@@ -2,8 +2,9 @@ from StringIO import StringIO
 import os
 from tempfile import mkstemp
 import unittest
-from mock import patch, mock_open
+from mock import patch, mock_open, MagicMock, Mock
 import sys
+from requests import Response
 from striketracker import Command, APIError
 
 
@@ -113,6 +114,125 @@ lastName: Saget
 lastName: Saget
 """, sys.stdout.getvalue())
 
+    @patch('striketracker.APIClient.get_host')
+    @patch('striketracker.ConfigurationCache.get')
+    def test_get_host(self, get, get_host):
+        sys.argv = ['striketracker', 'get_host', 'y1y2y3y4', 'x1x2x3x4']
+        get.return_value = 'cachedtoken'
+        get_host.return_value = {
+            "name": "test host",
+            "hashCode": "x1x2x3x4",
+            "type": "HOST",
+            "createdDate": "2016-04-12 11:22:03",
+            "updatedDate": "2016-04-12 11:22:18",
+            "services": [],
+            "scopes": [
+                {
+                    "id": 2746294,
+                    "platform": "CDS",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                },
+                {
+                    "id": 2746295,
+                    "platform": "ALL",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                }
+            ]
+        }
+        command = Command()
+        self.assertTrue(get_host.called)
+        self.assertEqual('cachedtoken', command.client.token)
+        self.assertEqual("""createdDate: '2016-04-12 11:22:03'
+hashCode: x1x2x3x4
+name: test host
+scopes:
+- createdDate: '2016-04-12 11:22:03'
+  id: 2746294
+  path: /
+  platform: CDS
+  updatedDate: '2016-04-12 11:22:03'
+- createdDate: '2016-04-12 11:22:03'
+  id: 2746295
+  path: /
+  platform: ALL
+  updatedDate: '2016-04-12 11:22:03'
+services: []
+type: HOST
+updatedDate: '2016-04-12 11:22:18'
+""", sys.stdout.getvalue())
+
+    @patch('striketracker.APIClient.get_host')
+    @patch('striketracker.ConfigurationCache.get')
+    def test_get_host_fails(self, get, get_host):
+        sys.argv = ['striketracker', 'get_host', 'y1y2y3y4', 'x1x2x3x4']
+        get.return_value = 'cachedtoken'
+        response = Mock()
+        response.json = Mock(return_value={
+            "error": "This endpoint requires authentication"
+        })
+        get_host.side_effect = APIError('Could not fetch host', response)
+        with self.assertRaises(SystemExit) as e:
+            command = Command()
+        self.assertTrue(get_host.called)
+        self.assertEqual("""Could not fetch host
+This endpoint requires authentication
+""", sys.stderr.getvalue())
+
+    @patch('striketracker.APIClient.get_host')
+    @patch('striketracker.ConfigurationCache.get')
+    def test_get_host_token(self, get, get_host):
+        sys.argv = ['striketracker', 'get_host', 'y1y2y3y4', 'x1x2x3x4', '--token', 'foobarwinniethefoobar']
+        get.return_value = 'cachedtoken'
+        get_host.return_value = {
+            "name": "test host",
+            "hashCode": "x1x2x3x4",
+            "type": "HOST",
+            "createdDate": "2016-04-12 11:22:03",
+            "updatedDate": "2016-04-12 11:22:18",
+            "services": [],
+            "scopes": [
+                {
+                    "id": 2746294,
+                    "platform": "CDS",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                },
+                {
+                    "id": 2746295,
+                    "platform": "ALL",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                }
+            ]
+        }
+        command = Command()
+        self.assertTrue(get_host.called)
+        self.assertEqual('foobarwinniethefoobar', command.client.token)
+        self.assertEqual("""createdDate: '2016-04-12 11:22:03'
+hashCode: x1x2x3x4
+name: test host
+scopes:
+- createdDate: '2016-04-12 11:22:03'
+  id: 2746294
+  path: /
+  platform: CDS
+  updatedDate: '2016-04-12 11:22:03'
+- createdDate: '2016-04-12 11:22:03'
+  id: 2746295
+  path: /
+  platform: ALL
+  updatedDate: '2016-04-12 11:22:03'
+services: []
+type: HOST
+updatedDate: '2016-04-12 11:22:18'
+""", sys.stdout.getvalue())
+
     def test_purge_no_hash(self):
         sys.argv = ['striketracker', 'purge', '--token', 'foobarwinniethefoobar']
         with self.assertRaises(SystemExit) as e:
@@ -198,3 +318,203 @@ lastName: Saget
         command = Command(cache=self.cache)
         purge_status.assert_called_with('x1x2x3x4', 'cmu34ctmy3408xmy')
         self.assertEqual('0.75\n', sys.stdout.getvalue())
+
+    @patch('striketracker.APIClient.update_configuration')
+    @patch('striketracker.APIClient.get_configuration')
+    @patch('striketracker.APIClient.create_scope')
+    @patch('striketracker.APIClient.create_host')
+    @patch('striketracker.APIClient.get_host')
+    @patch('striketracker.ConfigurationCache.get')
+    def test_clone_host(self, get, get_host, create_host, create_scope, get_configuration, update_configuration):
+        sys.argv = ['striketracker', 'clone_host', 'y1y2y3y4', 'x1x2x3x4']
+        get.return_value = 'cachedtoken'
+        get_host.return_value = {
+            "name": "test host",
+            "hashCode": "x1x2x3x4",
+            "type": "HOST",
+            "createdDate": "2016-04-12 11:22:03",
+            "updatedDate": "2016-04-12 11:22:18",
+            "services": [],
+            "scopes": [
+                {
+                    "id": 2746294,
+                    "platform": "CDS",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                },
+                {
+                    "id": 2746295,
+                    "platform": "ALL",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                }
+            ]
+        }
+        create_host.return_value = {
+            "name": "test host (copy)",
+            "hashCode": "c1c2c3c4",
+            "type": "HOST",
+            "createdDate": "2016-04-12 11:22:03",
+            "updatedDate": "2016-04-12 11:22:18",
+            "services": [],
+            "scopes": [
+                {
+                    "id": 2746296,
+                    "platform": "CDS",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                },
+                {
+                    "id": 2746297,
+                    "platform": "ALL",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                }
+            ]
+        }
+        create_scope.side_effect = [{
+            "id": 2746296,
+            "platform": "CDS",
+            "path": "/",
+            "createdDate": "2016-04-12 11:22:03",
+            "updatedDate": "2016-04-12 11:22:03"
+        },{
+            "id": 2746297,
+            "platform": "ALL",
+            "path": "/",
+            "createdDate": "2016-04-12 11:22:03",
+            "updatedDate": "2016-04-12 11:22:03"
+        }]
+        get_configuration.side_effect = [{
+            "scope": {
+                "id": 2746296,
+                "platform": "CDS",
+                "path": "/",
+                "createdDate": "2016-04-12 11:22:03",
+                "updatedDate": "2016-04-12 11:22:03"
+            },
+            "originPullHost": {
+                "id": 92846,
+                "primary": 1234
+            },
+            "cacheControl": [
+                {"id": 2846, "statusCodeMatch": "200", "maxAge": 600},
+                {"id": 26461947, "statusCodeMatch": "4*,5*", "maxAge": 1}
+            ],
+            "hostname": [
+                {"domain": "www.foo.com"}
+            ]
+        }, {
+            "scope": {
+                "id": 2746297,
+                "platform": "ALL",
+                "path": "/",
+                "createdDate": "2016-04-12 11:22:03",
+                "updatedDate": "2016-04-12 11:22:03"
+            }
+        }]
+        update_configuration.side_effect = [{
+            "scope": {
+                "id": 2746296,
+                "platform": "CDS",
+                "path": "/",
+                "createdDate": "2016-04-12 11:22:03",
+                "updatedDate": "2016-04-12 11:22:03"
+            },
+            "originPullHost": {
+                "id": 12345,
+                "primary": 1234
+            }
+        }, {
+            "scope": {
+                "id": 2746297,
+                "platform": "ALL",
+                "path": "/",
+                "createdDate": "2016-04-12 11:22:03",
+                "updatedDate": "2016-04-12 11:22:03"
+            }
+        }]
+
+        command = Command()
+        self.assertTrue(get_host.called)
+        self.assertTrue(create_host.called)
+
+    @patch('striketracker.APIClient.update_configuration')
+    @patch('striketracker.APIClient.get_configuration')
+    @patch('striketracker.APIClient.create_scope')
+    @patch('striketracker.APIClient.create_host')
+    @patch('striketracker.APIClient.get_host')
+    @patch('striketracker.ConfigurationCache.get')
+    def test_clone_host_get_fails(self, get, get_host, create_host, create_scope, get_configuration, update_configuration):
+        sys.argv = ['striketracker', 'clone_host', 'y1y2y3y4', 'x1x2x3x4']
+        get.return_value = 'cachedtoken'
+        get_host.side_effect = APIError('Could not fetch host', {})
+
+        with self.assertRaises(SystemExit) as e:
+            command = Command()
+
+    @patch('striketracker.APIClient.update_configuration')
+    @patch('striketracker.APIClient.get_configuration')
+    @patch('striketracker.APIClient.create_scope')
+    @patch('striketracker.APIClient.create_host')
+    @patch('striketracker.APIClient.get_host')
+    @patch('striketracker.ConfigurationCache.get')
+    def test_clone_host_get_configuration_fails(self, get, get_host, create_host, create_scope, get_configuration, update_configuration):
+        sys.argv = ['striketracker', 'clone_host', 'y1y2y3y4', 'x1x2x3x4']
+        get.return_value = 'cachedtoken'
+        get_host.return_value = {
+            "name": "test host",
+            "hashCode": "x1x2x3x4",
+            "type": "HOST",
+            "createdDate": "2016-04-12 11:22:03",
+            "updatedDate": "2016-04-12 11:22:18",
+            "services": [],
+            "scopes": [
+                {
+                    "id": 2746294,
+                    "platform": "CDS",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                },
+                {
+                    "id": 2746295,
+                    "platform": "ALL",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                }
+            ]
+        }
+        create_host.return_value = {
+            "name": "test host (copy)",
+            "hashCode": "c1c2c3c4",
+            "type": "HOST",
+            "createdDate": "2016-04-12 11:22:03",
+            "updatedDate": "2016-04-12 11:22:18",
+            "services": [],
+            "scopes": [
+                {
+                    "id": 2746296,
+                    "platform": "CDS",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                },
+                {
+                    "id": 2746297,
+                    "platform": "ALL",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                }
+            ]
+        }
+        get_configuration.side_effect = APIError('Could not fetch host', {})
+
+        with self.assertRaises(SystemExit) as e:
+            command = Command()

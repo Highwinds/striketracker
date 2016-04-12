@@ -57,6 +57,141 @@ class TestStrikeTrackerAPIClient(unittest.TestCase):
         with self.assertRaises(APIError):
             self.client.me()
 
+    @responses.activate
+    def test_get_host(self):
+        host = {
+            "name": "test host",
+            "hashCode": "x1x2x3x4",
+            "type": "HOST",
+            "createdDate": "2016-04-12 11:22:03",
+            "updatedDate": "2016-04-12 11:22:18",
+            "services": [],
+            "scopes": [
+                {
+                    "id": 2746294,
+                    "platform": "CDS",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                },
+                {
+                    "id": 2746295,
+                    "platform": "ALL",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                }
+            ]
+        }
+        responses.add(responses.GET, 'http://127.0.0.1/api/v1/accounts/y1y2y3y4/hosts/x1x2x3x4', json=host, status=200)
+        self.assertEqual(self.client.get_host('y1y2y3y4', 'x1x2x3x4'), host)
+
+
+    @responses.activate
+    def test_get_host_fails(self):
+        responses.add(responses.GET, 'http://127.0.0.1/api/v1/accounts/y1y2y3y4/hosts/x1x2x3x4', status=401)
+        with self.assertRaises(APIError):
+            self.client.get_host('y1y2y3y4', 'x1x2x3x4')
+
+    @responses.activate
+    def test_create_host(self):
+        host = {
+            "name": "test host",
+            "hashCode": "x1x2x3x4",
+            "type": "HOST",
+            "createdDate": "2016-04-12 11:22:03",
+            "updatedDate": "2016-04-12 11:22:18",
+            "services": [],
+            "scopes": [
+                {
+                    "id": 2746294,
+                    "platform": "CDS",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                },
+                {
+                    "id": 2746295,
+                    "platform": "ALL",
+                    "path": "/",
+                    "createdDate": "2016-04-12 11:22:03",
+                    "updatedDate": "2016-04-12 11:22:03"
+                }
+            ]
+        }
+        responses.add(responses.POST, 'http://127.0.0.1/api/v1/accounts/y1y2y3y4/hosts', json=host, status=201)
+        self.assertEqual(self.client.create_host('y1y2y3y4', host), host)
+
+
+    @responses.activate
+    def test_create_host_fails(self):
+        responses.add(responses.POST, 'http://127.0.0.1/api/v1/accounts/y1y2y3y4/hosts', status=401)
+        with self.assertRaises(APIError):
+            self.client.create_host('y1y2y3y4', {})
+
+    @responses.activate
+    def test_create_scope(self):
+        scope = {
+            "platform": "CDS",
+            "path": "/foo"
+        }
+
+        scope_response = {
+            "id": 27463,
+            "platform": "CDS",
+            "path": "/foo/",
+            "createdDate": "2015-01-01 00:00:00",
+            "updatedDate": "2015-01-01 00:00:00"
+        }
+
+        responses.add(responses.POST, 'http://127.0.0.1/api/v1/accounts/y1y2y3y4/hosts/x1x2x3x4/configuration/scopes', json=scope_response, status=200)
+        self.assertEqual(self.client.create_scope('y1y2y3y4', 'x1x2x3x4', scope), scope_response)
+
+
+    @responses.activate
+    def test_create_scope_fails(self):
+        scope = {
+            "platform": "CDS",
+            "path": "/foo"
+        }
+        responses.add(responses.POST, 'http://127.0.0.1/api/v1/accounts/y1y2y3y4/hosts/x1x2x3x4/configuration/scopes', status=401)
+        with self.assertRaises(APIError):
+            self.client.create_scope('y1y2y3y4', 'x1x2x3x4', scope)
+
+    @responses.activate
+    def test_get_configuration(self):
+        configuration = {
+            "originPullHost": {
+                "primary": 42
+            }
+        }
+        responses.add(responses.GET, 'http://127.0.0.1/api/v1/accounts/y1y2y3y4/hosts/x1x2x3x4/configuration/1234', json=configuration, status=200)
+        self.assertEqual(self.client.get_configuration('y1y2y3y4', 'x1x2x3x4', 1234), configuration)
+
+
+    @responses.activate
+    def test_get_configuration_fails(self):
+        responses.add(responses.GET, 'http://127.0.0.1/api/v1/accounts/y1y2y3y4/hosts/x1x2x3x4/configuration/1234', status=401)
+        with self.assertRaises(APIError):
+            self.client.get_configuration('y1y2y3y4', 'x1x2x3x4', 1234)
+
+    @responses.activate
+    def test_update_configuration(self):
+        configuration = {
+            "originPullHost": {
+                "primary": 42
+            }
+        }
+        responses.add(responses.PUT, 'http://127.0.0.1/api/v1/accounts/y1y2y3y4/hosts/x1x2x3x4/configuration/1234', json=configuration, status=200)
+        self.assertEqual(self.client.update_configuration('y1y2y3y4', 'x1x2x3x4', 1234, configuration), configuration)
+
+
+    @responses.activate
+    def test_update_configuration_fails(self):
+        responses.add(responses.PUT, 'http://127.0.0.1/api/v1/accounts/y1y2y3y4/hosts/x1x2x3x4/configuration/1234', status=401)
+        with self.assertRaises(APIError):
+            self.client.update_configuration('y1y2y3y4', 'x1x2x3x4', 1234, {})
+
 
     @responses.activate
     def test_create_token(self):
