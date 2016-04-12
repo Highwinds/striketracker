@@ -367,7 +367,8 @@ class Command:
 
             # Create new host
             new_host = self.client.create_host(self.args.account, {
-                "name": "%s (copy)" % host['name']
+                "name": "%s (copy)" % host['name'],
+                "services": host['services']
             })
         except APIError as e:
             self._error(e)
