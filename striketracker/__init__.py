@@ -239,7 +239,7 @@ class Command:
 
         # Read in command line arguments
         self.parser = argparse.ArgumentParser(description='Command line interface to the Highwinds CDN')
-        methodList = [method for method in dir(self) if callable(getattr(self, method)) and '_' not in method]
+        methodList = [method for method in dir(self) if callable(getattr(self, method)) and method[0] != '_']
         methodList.sort()
         self.parser.add_argument('action', help=",".join(methodList))
         self.parser.add_argument('--token', help='Token to use for this action')
